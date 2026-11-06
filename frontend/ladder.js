@@ -335,6 +335,25 @@ function _selectElem(el) {
   }
 }
 
+/** Output-bit stubs Studio 5000 draws on the right edge of timer and
+ *  counter boxes, e.g. (EN) (TT) (DN) on a TON. The bits are not operands
+ *  in the rung text, they are part of the instruction's display. */
+const BLOCK_BITS = {
+  TON: ["EN", "TT", "DN"],
+  TOF: ["EN", "TT", "DN"],
+  RTO: ["EN", "DN"],
+  CTU: ["CU", "DN", "OV"],
+  CTD: ["CD", "DN", "UN"],
+};
+
+/** Fill a block body row with a parameter label on the left and its value
+ *  on the right, the way Studio 5000 lays out block parameters. */
+function _setBlockRow(row, opName, val) {
+  row.textContent = "";
+  row.appendChild(_el("span", "blockParam", opName));
+  row.appendChild(_el("span", "blockVal", val));
+}
+
 function renderInstrSymbol(step, ctx) {
   const instr = instructionByCode(step.code);
   const kind  = instr ? instr.kind : "output";
@@ -344,32 +363,60 @@ function renderInstrSymbol(step, ctx) {
   let box = null, body = null;
 
   if (sym === "contact" || sym === "contact-neg") {
+    // Studio 5000 draws the tag above the contact, and the wire runs
+    // through the middle of the two bars. The label sits in flow above
+    // the symbol (see .elemLabel in style.css) so it reserves its own
+    // width and cannot overlap a neighbouring tag; the matching bottom
+    // padding keeps the wire centred on the bars.
+    wrap.classList.add("hasTopLabel");
+    const lbl = _el("div", "elemLabel", args[0] || "?"); lbl.title = args[0] || ""; wrap.appendChild(lbl);
     box = _el("div", "symContact" + (sym === "contact-neg" ? " neg" : ""));
     box.appendChild(_el("div", "cBar")); box.appendChild(_el("div", "cBar"));
     if (sym === "contact-neg") box.appendChild(_el("div", "cSlash"));
     box.title = step.code;
     wrap.appendChild(box);
-    const lbl = _el("div", "elemLabel", args[0] || "?"); lbl.title = args[0] || ""; wrap.appendChild(lbl);
   } else if (sym === "coil" || sym === "coil-l" || sym === "coil-u") {
+    // Studio 5000 coils are parentheses ( ), (L), (U) — not a circle.
+    // The tag sits above, the same as a contact.
+    wrap.classList.add("hasTopLabel");
+    const lbl = _el("div", "elemLabel", args[0] || "?"); lbl.title = args[0] || ""; wrap.appendChild(lbl);
     box = _el("div", "symCoil");
+    box.appendChild(_el("span", "paren", "("));
     box.appendChild(_el("span", "coilChar", sym === "coil-l" ? "L" : sym === "coil-u" ? "U" : ""));
+    box.appendChild(_el("span", "paren", ")"));
     box.title = step.code;
     wrap.appendChild(box);
-    const lbl = _el("div", "elemLabel", args[0] || "?"); lbl.title = args[0] || ""; wrap.appendChild(lbl);
   } else {
+    // Studio 5000 block: thin blue box, instruction name centred on the
+    // top border, parameters as label/value rows, and for timers and
+    // counters the (EN)/(DN) output stubs on the right edge.
     box = _el("div", "symBlock");
-    box.appendChild(_el("div", "blockTitle", step.code));
+    const inner = _el("div", "blockBox");
+    inner.appendChild(_el("div", "blockTitle", step.code));
     body = _el("div", "blockBody");
     if (!instr) console.warn(`[L5X] Unknown instruction "${step.code}" — showing P1/P2/P3 labels. Check CUSTOM_INSTRUCTIONS is loaded.`);
     const opNames = instr ? instr.operands : args.map((_, i) => `P${i + 1}`);
     opNames.forEach((opName, i) => {
       if (args[i] !== undefined) {
-        const row = _el("div", "blockRow", `${opName}: ${args[i]}`); row.title = `${opName}: ${args[i]}`;
+        const row = _el("div", "blockRow"); row.title = `${opName}: ${args[i]}`;
+        _setBlockRow(row, opName, args[i]);
         body.appendChild(row);
       }
     });
-    if (!body.children.length) body.appendChild(_el("div", "blockRow", "\u00A0"));
-    box.appendChild(body);
+    if (body.children.length) {
+      inner.appendChild(body);
+    } else {
+      // No parameters (NOP, RET, MCR, AFI, ...): a small plain box with
+      // the code inside it, the way Studio draws those instructions.
+      box.classList.add("compact");
+    }
+    box.appendChild(inner);
+    const bits = BLOCK_BITS[step.code.toUpperCase()];
+    if (bits) {
+      const bitsEl = _el("div", "blockBits");
+      bits.forEach(b => bitsEl.appendChild(_el("div", "blockBit", `(${b})`)));
+      box.appendChild(bitsEl);
+    }
     wrap.appendChild(box);
   }
   if (ctx) {
@@ -487,11 +534,11 @@ function renderInstrSymbol(step, ctx) {
             row.textContent = ""; row.appendChild(inp); inp.focus(); inp.select();
             function commit() {
               const nv = inp.value.trim();
-              row.textContent = opName+": "+(nv||orig); row.title = "Double-click to edit";
+              _setBlockRow(row, opName, nv || orig); row.title = "Double-click to edit";
               if (nv !== orig) { const na=[...step.args]; na[argIdx]=nv; ctx.onDirectEditSilent({...step,args:na}); }
             }
             inp.onblur = commit;
-            inp.onkeydown = e2=>{if(e2.key==="Enter"){e2.preventDefault();commit();}if(e2.key==="Escape"){row.textContent=opName+": "+orig;}};
+            inp.onkeydown = e2=>{if(e2.key==="Enter"){e2.preventDefault();commit();}if(e2.key==="Escape"){_setBlockRow(row, opName, orig);}};
           };
         });
       }
@@ -623,6 +670,27 @@ function appendSeq(container, arr, ctx, splitOutputs) {
 
 function renderBranch(branchEl, ctx) {
   const wrap = _el("div", "ladderBranch");
+  // Vertical branch wires, placed by measurement after layout so they run
+  // from the centre of the first leg to the centre of the last leg, the
+  // way Studio 5000 draws a parallel branch.
+  const vertL = _el("div", "branchVert left");
+  const vertR = _el("div", "branchVert right");
+  wrap.appendChild(vertL);
+  wrap.appendChild(vertR);
+  function alignVerts() {
+    const legs = Array.from(wrap.querySelectorAll(".ladderBranchLeg"));
+    if (legs.length < 2) return;
+    const wr = wrap.getBoundingClientRect();
+    if (!wr.height) return;
+    const first = legs[0].querySelector(".branchLegWire") || legs[0];
+    const last = legs[legs.length - 1].querySelector(".branchLegWire") || legs[legs.length - 1];
+    const f = first.getBoundingClientRect();
+    const l = last.getBoundingClientRect();
+    const top = (f.top + f.height / 2) - wr.top;
+    const bottom = wr.height - ((l.top + l.height / 2) - wr.top);
+    [vertL, vertR].forEach(v => { v.style.top = top + "px"; v.style.bottom = bottom + "px"; });
+  }
+  requestAnimationFrame(alignVerts);
   if (ctx) {
     // Branches can be selected via single-click on the wrap
     wrap.onclick = (e) => { e.stopPropagation(); _selectElem(wrap); };

@@ -6,6 +6,7 @@
   --accent:#2f81f7; --accentHover:#388bfd;
   --green:#3fb950; --red:#f85149; --orange:#d29922; --purple:#a5d6ff;
   --rll:#2f81f7; --st:#3fb950; --udt:#e3b341;
+  --ladder:#c9d1d9; --ladderBlue:#6ea8fe; --ladderBg:#0a0e14;
   --fontMono:Consolas,"Courier New",monospace;
   --fontUI:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   --radius:6px; --orgW:280px;
@@ -143,19 +144,26 @@ dialog label input,dialog label select,dialog label textarea{display:block;width
 #toast.err{border-color:var(--red);color:#ffa198;}
 
 /* ── Ladder diagram visual rendering ────────────────────────────────────── */
-.ladderRung{display:flex;align-items:stretch;background:#0a0e14;border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;overflow-x:auto;margin-bottom:10px;}
-.rail{width:4px;min-width:4px;background:var(--border2);flex-shrink:0;border-radius:2px;align-self:stretch;}
-.rungWire{display:flex;align-items:stretch;flex:1;min-width:0;min-height:56px;cursor:default;}
+.ladderRung{display:flex;align-items:stretch;background:var(--ladderBg);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;overflow-x:auto;margin-bottom:10px;}
+.rail{width:2px;min-width:2px;background:var(--ladder);flex-shrink:0;align-self:stretch;}
+.rungWire{display:flex;align-items:stretch;flex:1;min-width:0;min-height:56px;padding-top:10px;cursor:default;}
 body.ldDragging .rungWire,.rungWire:has(.wireDragOver){cursor:copy;}
-.wireSeg{height:2px;background:var(--border2);flex:0 0 14px;align-self:center;}
+.wireSeg{height:2px;background:var(--ladder);flex:0 0 12px;align-self:center;}
 .wireSeg.long{flex:1 1 auto;align-self:center;}
 .ladderElem{display:flex;flex-direction:column;align-items:center;align-self:center;flex-shrink:0;position:relative;}
-.ladderElem .elemLabel{font-size:10px;color:var(--text2);margin-top:2px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:normal;word-break:break-word;text-align:center;line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+/* Studio 5000 puts the operand above the contact or coil, centred on it.
+   The label is in flow above the symbol so it reserves its own width and
+   can never overlap a neighbouring tag (long tags truncate with an
+   ellipsis; the full name is in the tooltip). The matching bottom padding
+   on the element keeps the wire centred on the symbol. */
+.ladderElem .elemLabel{height:14px;line-height:14px;font-size:11px;font-family:var(--fontMono);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:max-content;max-width:150px;}
+.ladderElem.hasTopLabel{padding-bottom:14px;}
 .ladderElem .elemLabel.dim{color:var(--text3);font-style:italic;}
 
-.ladderElem.editable:hover .symContact .cBar,.ladderElem.editable:hover .symCoil{filter:brightness(1.4);}
-.ladderElem.editable:hover .symBlock{border-color:#fff;}
-.ladderElem .elemDel{position:absolute;top:-8px;right:-8px;width:16px;height:16px;line-height:14px;padding:0;font-size:9px;border-radius:50%;background:var(--red,#c94b4b);color:#fff;border:1px solid #0a0e14;cursor:pointer;opacity:0;transition:opacity .12s;}
+.ladderElem.editable:hover .symContact .cBar,.ladderElem.editable:hover .symContact .cSlash{background:var(--accent);}
+.ladderElem.editable:hover .symCoil .paren,.ladderElem.editable:hover .symCoil .coilChar{color:var(--accent);}
+.ladderElem.editable:hover .blockBox{border-color:#fff;}
+.ladderElem .elemDel{position:absolute;bottom:-8px;right:-8px;width:16px;height:16px;line-height:14px;padding:0;font-size:9px;border-radius:50%;background:var(--red,#c94b4b);color:#fff;border:1px solid #0a0e14;cursor:pointer;opacity:0;transition:opacity .12s;}
 .ladderElem:hover .elemDel{opacity:1;}
 .addInline{display:flex;gap:4px;flex-shrink:0;margin-left:4px;}
 .addInline button{width:26px;height:22px;padding:0;font-size:11px;}
@@ -164,26 +172,46 @@ body.ldDragging .rungWire,.rungWire:has(.wireDragOver){cursor:copy;}
 .branchTools{display:flex;justify-content:flex-end;gap:4px;padding:2px 6px;}
 .legRemove{margin-left:6px;}
 
-.symContact{width:30px;height:26px;display:flex;align-items:center;justify-content:center;gap:5px;position:relative;}
-.symContact .cBar{width:3px;height:24px;background:var(--accent);border-radius:1px;}
-.symContact.neg .cSlash{position:absolute;width:2px;height:30px;background:var(--accent);transform:rotate(25deg);}
+/* XIC: two short vertical bars, the wire running through their middle.
+   XIO adds the diagonal slash, bottom-left to top-right, as in Studio. */
+.symContact{width:16px;height:28px;display:flex;align-items:center;justify-content:center;gap:8px;position:relative;}
+.symContact .cBar{width:2px;height:26px;background:var(--ladder);border-radius:1px;}
+.symContact.neg .cSlash{position:absolute;width:2px;height:32px;background:var(--ladder);transform:rotate(28deg);}
 
-.symCoil{width:28px;height:28px;border:3px solid var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;background:transparent;}
-.symCoil .coilChar{font-size:12px;font-weight:700;color:var(--green);}
+/* OTE / OTL / OTU: parentheses, not a circle — ( ) (L) (U). */
+.symCoil{height:28px;display:flex;align-items:center;justify-content:center;background:transparent;}
+.symCoil .paren{font-size:26px;line-height:1;color:var(--ladder);font-weight:400;}
+.symCoil .coilChar{font-size:13px;font-weight:700;color:var(--ladder);min-width:9px;text-align:center;}
 
-.symBlock{border:2px solid var(--orange);border-radius:4px;background:var(--surface2);min-width:110px;overflow:hidden;}
-.symBlock .blockTitle{background:var(--orange);color:#1a1300;font-weight:700;font-size:11px;text-align:center;padding:2px 8px;}
-.symBlock .blockBody{padding:4px 8px;display:flex;flex-direction:column;gap:2px;}
-.symBlock .blockRow{font-size:10px;color:var(--text2);font-family:var(--fontMono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;}
+/* Studio 5000 function block: thin blue box, the instruction name
+   centred on the top border (the border breaks around it), parameters
+   as label/value rows, and timer/counter output bits (EN)/(DN) as small
+   stubs on the right edge. */
+.symBlock{display:flex;align-items:stretch;}
+.blockBox{position:relative;border:1.5px solid var(--ladderBlue);border-radius:3px;background:var(--surface2);min-width:110px;}
+.blockTitle{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--ladderBg);color:var(--ladderBlue);font-weight:700;font-size:11px;padding:0 6px;white-space:nowrap;}
+.blockBody{padding:10px 10px 6px;display:flex;flex-direction:column;gap:2px;}
+.blockRow{display:flex;justify-content:space-between;gap:12px;font-size:10px;font-family:var(--fontMono);white-space:nowrap;max-width:300px;}
+.blockRow .blockParam{color:var(--text2);overflow:hidden;text-overflow:ellipsis;}
+.blockRow .blockVal{color:var(--text);text-align:right;overflow:hidden;text-overflow:ellipsis;}
+.blockBits{display:flex;flex-direction:column;justify-content:center;gap:2px;margin-left:2px;}
+.blockBit{font-size:11px;font-family:var(--fontMono);color:var(--ladderBlue);white-space:nowrap;}
+/* No-parameter instructions (NOP, RET, MCR, AFI, ...): a small plain box
+   with the code inside it, instead of a title on the border. */
+.symBlock.compact .blockBox{min-width:52px;display:flex;align-items:center;justify-content:center;}
+.symBlock.compact .blockTitle{position:static;transform:none;background:transparent;padding:6px 10px;}
 
 /* ── raw rung textarea (was tiny — now sized properly + resizable) ──────── */
 textarea.rawRungText{width:100%;min-height:160px;resize:vertical;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--fontMono);font-size:13px;padding:10px;border-radius:var(--radius);}
 
 /* ── Ladder branches (parallel OR groups) ───────────────────────────────── */
-.ladderBranch{display:flex;flex-direction:column;border-top:2px solid var(--border2);border-bottom:2px solid var(--border2);border-left:2px solid var(--border2);border-right:2px solid var(--border2);border-radius:4px;margin:0 6px;position:relative;}
-.ladderBranch::before{content:"";position:absolute;left:-6px;top:0;bottom:0;width:6px;border-top:2px solid var(--border2);border-bottom:2px solid var(--border2);}
-.ladderBranchLeg{display:flex;align-items:center;padding:6px 8px;border-bottom:1px dashed var(--border);}
-.ladderBranchLeg:last-child{border-bottom:none;}
+.ladderBranch{display:flex;flex-direction:column;margin:0 6px;position:relative;align-self:center;}
+/* Vertical branch wires, positioned by ladder.js from the first to the
+   last leg centre. They default to full height until measured. */
+.branchVert{position:absolute;width:2px;background:var(--ladder);top:0;bottom:0;pointer-events:none;}
+.branchVert.left{left:0;}
+.branchVert.right{right:0;}
+.ladderBranchLeg{display:flex;align-items:center;padding:4px 8px;}
 .branchLegWire{display:flex;align-items:stretch;min-height:44px;}
 
 /* ── Branch editor (in the editable instruction list) ───────────────────── */
@@ -281,7 +309,7 @@ dialog.findDialog{width:640px;max-width:92vw;max-height:80vh;overflow-y:auto;}
   content:'';position:absolute;
   top:50%;transform:translateY(-50%);
   width:100%;height:2px;
-  background:var(--border2);border-radius:1px;
+  background:var(--ladder);border-radius:1px;
   transition:background .15s,height .15s;
 }
 .insertDot:hover::before{background:rgba(59,130,246,.5);height:3px;}
